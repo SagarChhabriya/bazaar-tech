@@ -1,156 +1,115 @@
 import sqlite3
-from dataclasses import dataclass
-from datetime import datetime
 
-# Data Model 
-@dataclass
-class Product:
-    id: int
-    name: str
-    current_stock: int
+# Initialize database
 
 
-@dataclass
-class StockMovement:
-    product_id: int
-    movement_type: str  # "IN", "SALE", "REMOVAL"
-    quantity: int
-    timestamp: str
-
-
-# Database Setup
 def init_db():
-    conn = sqlite3.connect("inventory.db")
+    conn = sqlite3.connect("simple_inventory.db")
     cursor = conn.cursor()
+
+    # Single table for everything
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            current_stock INTEGER DEFAULT 0
-        )
+    CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        stock INTEGER DEFAULT 0,
+        last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+    )
     """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS stock_movements (
-            product_id INTEGER,
-            movement_type TEXT,
-            quantity INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (product_id) REFERENCES products(id)
-        )
-    """)
-    # Insert some sample products if empty
-    cursor.execute("SELECT COUNT(*) FROM products")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany(
-            "INSERT INTO products (id, name, current_stock) VALUES (?, ?, ?)",
-            [(1, "Apple", 50), (2, "Banana", 30), (3, "Orange", 20)]
-        )
     conn.commit()
     conn.close()
 
+# Add new product
 
-# Inventory Operations
-def add_stock(product_id: int, quantity: int):
-    conn = sqlite3.connect("inventory.db")
+
+def add_product(name, initial_stock=0):
+    conn = sqlite3.connect("simple_inventory.db")
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE products SET current_stock = current_stock + ? WHERE id = ?", 
-        (quantity, product_id))
-    cursor.execute(
-        "INSERT INTO stock_movements (product_id, movement_type, quantity) VALUES (?, 'IN', ?)", 
-        (product_id, quantity))
+        "INSERT INTO products (name, stock) VALUES (?, ?)",
+        (name, initial_stock)
+    )
     conn.commit()
     conn.close()
+    print(f"Added: {name} (Initial stock: {initial_stock})")
+
+# Update stock
 
 
-def sell_product(product_id: int, quantity: int):
-    conn = sqlite3.connect("inventory.db")
+def update_stock(product_id, change):
+    conn = sqlite3.connect("simple_inventory.db")
     cursor = conn.cursor()
+
+    # Get current stock
+    cursor.execute("SELECT stock FROM products WHERE id = ?", (product_id,))
+    current = cursor.fetchone()[0]
+    new_stock = current + change
+
+    if new_stock < 0:
+        print("Error: Stock cannot go negative!")
+        return
+
+    # Update stock
     cursor.execute(
-        "UPDATE products SET current_stock = current_stock - ? WHERE id = ?", 
-        (quantity, product_id))
-    cursor.execute(
-        "INSERT INTO stock_movements (product_id, movement_type, quantity) VALUES (?, 'SALE', ?)", 
-        (product_id, quantity))
+        "UPDATE products SET stock = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?",
+        (new_stock, product_id)
+    )
     conn.commit()
     conn.close()
+    print(
+        f"Updated: Product {product_id} | Change: {change:+} | New stock: {new_stock}")
+
+# List all products
 
 
-def show_products():
-    conn = sqlite3.connect("inventory.db")
+def list_products():
+    conn = sqlite3.connect("simple_inventory.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, current_stock FROM products")
-    products = cursor.fetchall()
-    conn.close()
-    
+    cursor.execute("SELECT id, name, stock, last_updated FROM products")
+
     print("\nCurrent Inventory:")
-    print("{:<5} {:<20} {:<10}".format("ID", "Product Name", "Quantity"))
-    print("-" * 40)
-    for product in products:
-        print("{:<5} {:<20} {:<10}".format(product[0], product[1], product[2]))
-
-
-def show_movements(product_id: int):
-    conn = sqlite3.connect("inventory.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT movement_type, quantity, timestamp 
-        FROM stock_movements 
-        WHERE product_id = ?
-        ORDER BY timestamp DESC
-        LIMIT 10
-    """, (product_id,))
-    movements = cursor.fetchall()
+    print(f"{'ID':<5}{'Product':<20}{'Stock':<10}{'Last Updated':<20}")
+    print("-" * 50)
+    for row in cursor.fetchall():
+        print(f"{row[0]:<5}{row[1]:<20}{row[2]:<10}{row[3]:<20}")
     conn.close()
-    
-    print(f"\nRecent movements for product {product_id}:")
-    print("{:<10} {:<10} {:<20}".format("Type", "Quantity", "Timestamp"))
-    print("-" * 40)
-    for move in movements:
-        print("{:<10} {:<10} {:<20}".format(move[0], move[1], move[2]))
+
+# Simple CLI
 
 
-# CLI Interface
-def main_menu():
-    print("\nInventory Management System")
-    print("1. View Current Stock")
-    print("2. Add Stock")
-    print("3. Sell Product")
-    print("4. View Product History")
-    print("5. Exit")
+def main():
+    init_db()
+    while True:
+        print("\n1. Add Product\n2. Add Stock\n3. Sell Product\n4. View Inventory\n5. Exit")
+        choice = input("Choose option: ")
+
+        if choice == "1":
+            name = input("Product name: ")
+            stock = int(input("Initial stock: "))
+            add_product(name, stock)
+
+        elif choice == "2":
+            list_products()
+            pid = int(input("Product ID: "))
+            qty = int(input("Quantity to add: "))
+            update_stock(pid, qty)
+
+        elif choice == "3":
+            list_products()
+            pid = int(input("Product ID: "))
+            qty = int(input("Quantity to sell: "))
+            update_stock(pid, -qty)
+
+        elif choice == "4":
+            list_products()
+
+        elif choice == "5":
+            print("Goodbye!")
+            break
+
+        else:
+            print("Invalid choice")
 
 
 if __name__ == "__main__":
-    init_db()
-    while True:
-        main_menu()
-        choice = input("Choose action (1-5): ")
-        
-        if choice == "1":
-            show_products()
-            
-        elif choice == "2":
-            show_products()
-            product_id = int(input("Enter product ID to restock: "))
-            quantity = int(input("Enter quantity to add: "))
-            add_stock(product_id, quantity)
-            print(f"Added {quantity} units to product {product_id}")
-            
-        elif choice == "3":
-            show_products()
-            product_id = int(input("Enter product ID to sell: "))
-            quantity = int(input("Enter quantity to sell: "))
-            sell_product(product_id, quantity)
-            print(f"Sold {quantity} units of product {product_id}")
-            
-        elif choice == "4":
-            show_products()
-            product_id = int(input("Enter product ID to view history: "))
-            show_movements(product_id)
-            
-        elif choice == "5":
-            print("Exiting inventory system...")
-            break
-            
-        else:
-            print("Invalid choice. Please enter 1-5.")
+    main()
