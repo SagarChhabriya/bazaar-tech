@@ -210,7 +210,7 @@ def main():
             view_inventory()
             pid = int(input("Product ID to delete: "))
             delete_product(pid)
-        
+
         elif choice == "7":
             print("Exiting...")
             break
