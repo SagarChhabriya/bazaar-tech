@@ -1,7 +1,7 @@
 import sqlite3
 from dataclasses import dataclass
 
-# Data Model
+# Data Model 
 @dataclass
 class Product:
     id: int
