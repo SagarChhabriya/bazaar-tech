@@ -32,6 +32,9 @@ MANIFEST
 *.manifest
 *.spec
 
+deletable/
+docs/
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -172,3 +175,8 @@ cython_debug/
 
 
 /00-ignore
+docs/~$Submission Template - Bazaar Case Study Round.pptx
+docs/Case Study Challenge _ Engineering.pdf
+docs/Sagar_Chhabriya_SIBA_2026.pdf
+docs/Sagar_Chhabriya_SIBA_2026.pptx
+docs/Submission Template - Bazaar Case Study Round.pptx
